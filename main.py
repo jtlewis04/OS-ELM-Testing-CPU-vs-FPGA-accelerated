@@ -18,18 +18,15 @@ ball = Ball(ball_x, ball_y, screen)
 bricks = Bricks(screen, brick_width, brick_height)
 
 score = ScoreBoard(10, "white", screen)
-score.set_high_score()   # <-- IMPORTANT (parentheses)
+score.set_high_score()  
 
 running = True
 while running:
     screen.fill(BG_COLOR)
     score.show_scores()
     pad.appear(screen)
-    score.set_high_score() 
 
-    # ---------------------------
-    # GAME OVER / WIN CHECKS
-    # ---------------------------
+   
     if score.is_game_over():
         score.game_over()
 
@@ -63,11 +60,24 @@ while running:
                 score.score += 1
 
         # ball hits bottom
+        # ball hits bottom (lose a trial)
+        # ball hits bottom (lose a trial)
         if ball.y + ball.radius >= HEIGHT:
-            ball.y = pad.y - ball.radius
-            pg.time.delay(500)
             score.trials -= 1
-            ball.bounce_y()
+            score.score = 0
+
+            bricks.reset_all()
+
+            ball.x = ball_x
+            ball.y = pad.y - ball.radius
+
+            pg.time.delay(500)
+
+            # force ball upward
+            ball.y_speed = -abs(ball.y_speed)
+
+
+
 
     bricks.show_bricks()
 
