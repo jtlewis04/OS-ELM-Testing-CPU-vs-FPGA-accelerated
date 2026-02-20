@@ -1,79 +1,127 @@
+# bricks.py  (pure grid stepping, no pixel movement state)
 import random
 import pygame as pg
 
 class Bricks:
-    def __init__(self, screen, width, height):
+    def __init__(self, screen, brick_w, brick_h):
         self.screen = screen
-        self.width = width
-        self.height = height
-        self.random_colors = ['blue', 'yellow', 'red', 'green', 'orange']
-        self.bricks = []
-        self.brick_colors = []
+        self.brick_w = brick_w
+        self.brick_h = brick_h
+        self.random_colors = ['blue', 'yellow', 'red', 'green', 'orange', 'white']
+
+        self.cols = 13
+
+        # render mapping only
+        self.origin_x = 10
+        self.origin_y = 100
+        self.gap_x = 6
+        self.gap_y = 6
+
+        self.grid = []
+        self.color_grid = []
         self.set_values()
 
-        self.start_delay_ms = 2000         
+        self.start_delay_ms = 2000
         self.spawn_time = pg.time.get_ticks()
 
-        self.invade_speed = 3.0            
-        self.invade_max_speed = 25.0       # cap speed
-        self.invade_accel = 1.5            # pixels per second^2 
+        self.step_interval_ms = 10000
+        self.last_step_time = pg.time.get_ticks()
 
-        self.last_update_time = pg.time.get_ticks()
+        self.max_rows = 200
 
     def set_values(self):
-        y_values = [int(y) for y in range(100, 200, 25)]
-        x_values = [int(x) for x in range(10, 550, 42)]
-        y_index = 0
-        self.loop(x_values, y_values, y_index)
+        start_rows = 4
+        self.grid = [[1 for _ in range(self.cols)] for _ in range(start_rows)]
+        self.color_grid = [[random.choice(self.random_colors) for _ in range(self.cols)]
+                           for _ in range(start_rows)]
 
-    def loop(self, x_values, y_values, y_index):
-        for n in x_values:
-            if n == x_values[-1]:
-                if y_index < len(y_values) - 1:
-                    y_index += 1
-                    self.loop(x_values, y_values, y_index)
-            else:
-                x = n
-                y = y_values[y_index]
-                brick = pg.Rect(x, y, self.width, self.height)
-                self.bricks.append(brick)
-                self.brick_colors.append(random.choice(self.random_colors))
+    def reset_invade(self):
+        now = pg.time.get_ticks()
+        self.spawn_time = now
+        self.last_step_time = now
+
+    def reset_all(self):
+        self.set_values()
+        self.reset_invade()
+
+    def bricks_left(self) -> int:
+        return sum(sum(row) for row in self.grid)
+
+    def _add_new_top_row(self):
+        self.grid.insert(0, [1 for _ in range(self.cols)])
+        self.color_grid.insert(0, [random.choice(self.random_colors) for _ in range(self.cols)])
+
+        if len(self.grid) > self.max_rows:
+            self.grid.pop()
+            self.color_grid.pop()
+
+    def _step_down(self):
+        self._add_new_top_row()
+
+    def _touch_row_index(self, paddle_rect) -> int:
+        # row r touches when (origin_y + r*stride_y + brick_h) >= paddle_top
+        stride_y = self.brick_h + self.gap_y
+        numer = (paddle_rect.top - self.origin_y - self.brick_h)
+        if numer <= 0:
+            return 0
+        return (numer + stride_y - 1) // stride_y  # ceil(numer/stride_y)
 
     def invade_update(self, paddle_rect) -> bool:
         now = pg.time.get_ticks()
 
+        # during delay, keep timers synced so we dont "catch up" in one frame
         if now - self.spawn_time < self.start_delay_ms:
-            self.last_update_time = now
+            self.last_step_time = now
             return False
 
-        dt = (now - self.last_update_time) / 1000.0
-        self.last_update_time = now
+        # step at most 1 row per frame to avoid jumps
+        if now - self.last_step_time >= self.step_interval_ms:
+            self.last_step_time = now
+            self._step_down()
 
-        if dt > 0.05:
-            dt = 0.05
+        # game over only if stack has actually reached the paddle row
+        touch_r = self._touch_row_index(paddle_rect)
+        if touch_r < 0:
+            touch_r = 0
 
-        # Accelerate smoothly
-        self.invade_speed = min(self.invade_speed + self.invade_accel * dt, self.invade_max_speed)
+        if touch_r >= len(self.grid):
+            return False
 
-        # Move bricks down by speed * time
-        dy = self.invade_speed * dt
-
-        for brick in self.bricks:
-            brick.y += dy
-
-            # Game over if brick reaches paddle line
-            if brick.bottom >= paddle_rect.top:
+        for r in range(touch_r, len(self.grid)):
+            if any(self.grid[r]):
                 return True
 
         return False
 
-    def reset_invade(self):
-        self.spawn_time = pg.time.get_ticks()
-        self.last_update_time = pg.time.get_ticks()
-        self.invade_speed = 3.0
+    def hit_by_ball(self, ball_x, ball_y, ball_radius) -> bool:
+        stride_x = self.brick_w + self.gap_x
+        stride_y = self.brick_h + self.gap_y
+
+        c = int((ball_x - self.origin_x) // stride_x)
+        r = int((ball_y - self.origin_y) // stride_y)
+
+        if r < 0 or c < 0:
+            return False
+        if r >= len(self.grid) or c >= self.cols:
+            return False
+
+        if self.grid[r][c] == 1:
+            self.grid[r][c] = 0
+            return True
+
+        return False
 
     def show_bricks(self):
-        for i in range(len(self.bricks)):
-            brick = self.bricks[i]
-            color = self.brick_colors[i]
-            pg.draw.rect(self.screen, color, brick)
+        stride_x = self.brick_w + self.gap_x
+        stride_y = self.brick_h + self.gap_y
+        screen_h = self.screen.get_height()
+
+        for r in range(len(self.grid)):
+            y = self.origin_y + r * stride_y
+            if y > screen_h:
+                return
+            for c in range(self.cols):
+                if self.grid[r][c] == 1:
+                    x = self.origin_x + c * stride_x
+                    rect = pg.Rect(x, y, self.brick_w, self.brick_h)
+                    pg.draw.rect(self.screen, self.color_grid[r][c], rect)

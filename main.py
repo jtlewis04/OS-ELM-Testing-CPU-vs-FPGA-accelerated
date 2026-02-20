@@ -1,4 +1,3 @@
-# main.py
 from ball import Ball
 import pygame as pg
 from bricks import Bricks
@@ -12,13 +11,12 @@ screen = pg.display.set_mode((WIDTH, HEIGHT))
 pg.display.set_caption("Breakout Game")
 clock = pg.time.Clock()
 
-# OBJECTS
 pad = Paddle(paddle_x, paddle_y)
 ball = Ball(ball_x, ball_y, screen)
 bricks = Bricks(screen, brick_width, brick_height)
 
 score = ScoreBoard(10, "white", screen)
-score.set_high_score()  
+score.set_high_score()
 
 running = True
 while running:
@@ -26,87 +24,71 @@ while running:
     score.show_scores()
     pad.appear(screen)
 
-   
     if score.is_game_over():
         score.game_over()
 
-    elif len(bricks.bricks) == 0:
+    elif bricks.bricks_left() == 0:
         score.success()
 
     else:
-        
         if bricks.invade_update(pad.rect):
-            score.trials = 0  # triggers game over state
+            score.trials = 0
 
-        
         ball.move()
 
-        # bounce off walls
-        ball.check_for_contact_on_x()
-        ball.check_for_contact_on_y()
+        if ball.check_for_contact_on_x():
+            score.reset_combo()
+        if ball.check_for_contact_on_y():
+            score.reset_combo()
 
-        # ball hits paddle
-        if (pad.rect.y < ball.y + ball.radius < pad.rect.y + pad.height
-                and pad.rect.x < ball.x + ball.radius < pad.rect.x + pad.width):
+        # robust paddle hit (ball rect vs paddle rect)
+        ball_rect = pg.Rect(int(ball.x - ball.radius), int(ball.y - ball.radius),
+                            ball.radius * 2, ball.radius * 2)
+
+        if ball_rect.colliderect(pad.rect) and ball.y_speed > 0:
+            ball.bounce_from_paddle(pad.rect)
+            ball.y = pad.rect.top - ball.radius - 1
+            score.reset_combo()
+
+        if bricks.hit_by_ball(ball.x, ball.y, ball.radius):
             ball.bounce_y()
-            ball.y = pad.y - ball.radius
+            score.brick_hit()
 
-        # ball hits brick
-        for brick in bricks.bricks[:]:
-            if (brick.collidepoint(ball.x, ball.y - ball.radius)
-                    or brick.collidepoint(ball.x, ball.y + ball.radius)):
-                bricks.bricks.remove(brick)
-                ball.bounce_y()
-                score.score += 1
-
-        # ball hits bottom
-        # ball hits bottom (lose a trial)
-        # ball hits bottom (lose a trial)
         if ball.y + ball.radius >= HEIGHT:
             score.trials -= 1
             score.score = 0
+            score.reset_combo()
 
             bricks.reset_all()
 
             ball.x = ball_x
-            ball.y = pad.y - ball.radius
+            ball.y = pad.rect.top - ball.radius - 1
 
             pg.time.delay(500)
-
-            # force ball upward
             ball.y_speed = -abs(ball.y_speed)
-
-
-
 
     bricks.show_bricks()
 
-    # quit
     for event in pg.event.get():
         if event.type == pg.QUIT:
             running = False
 
-    # input
+        if event.type == pg.KEYDOWN and event.key == pg.K_0:
+            score.score = 0
+            score.trials = 2
+            score.reset_combo()
+
+            bricks.reset_all()
+
+            ball.x = ball_x
+            ball.y = ball_y
+            ball.y_speed = -abs(ball.y_speed)
+
     keys = pg.key.get_pressed()
     if keys[pg.K_RIGHT]:
         pad.move_right()
     if keys[pg.K_LEFT]:
         pad.move_left()
-
-    if keys[pg.K_0]:
-        score.score = 0
-        score.trials = 2
-
-        bricks.bricks.clear()
-        bricks.brick_colors.clear()
-        bricks.set_values()
-
-        bricks.reset_invade()
-
-        ball.x = ball_x
-        ball.y = ball_y
-
-
 
     pg.display.flip()
     clock.tick(60)
