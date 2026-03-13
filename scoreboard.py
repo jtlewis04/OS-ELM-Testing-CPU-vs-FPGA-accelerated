@@ -13,7 +13,7 @@ class ScoreBoard:
         # combo system
         self.combo = 0
         self.base_points = 10
-        self.combo_max = 12
+        self.combo_max = 50
 
     def show_scores(self):
         score_text = self.font.render(f"Score: {self.score}", True, self.color)
