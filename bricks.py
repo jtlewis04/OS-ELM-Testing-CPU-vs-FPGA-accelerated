@@ -1,21 +1,26 @@
 # bricks.py  (pure grid stepping, no pixel movement state)
 import random
 import pygame as pg
+from settings import paddle_y
 
 class Bricks:
-    def __init__(self, screen, brick_w, brick_h):
+    def __init__(self, bricks_per_row, bricks_per_col, screen):
         self.screen = screen
-        self.brick_w = brick_w
-        self.brick_h = brick_h
+        self.cols = bricks_per_row
+        self.start_rows = (int) (bricks_per_col / 3)
         self.random_colors = ['blue', 'yellow', 'red', 'green', 'orange', 'white']
-
-        self.cols = 13
 
         # render mapping only
         self.origin_x = 10
         self.origin_y = 100
-        self.gap_x = 6
-        self.gap_y = 6
+
+        # size bricks to fill playable width and height with gaps
+        playable_w = screen.get_width() - 2 * self.origin_x
+        playable_h = paddle_y - self.origin_y
+        self.gap_x = playable_w // bricks_per_row // 5
+        self.gap_y = playable_h // bricks_per_col // 5
+        self.brick_w = (playable_w - (bricks_per_row - 1) * self.gap_x) // bricks_per_row
+        self.brick_h = (playable_h - (bricks_per_col - 1) * self.gap_y) // bricks_per_col
 
         self.grid = []
         self.color_grid = []
@@ -30,10 +35,9 @@ class Bricks:
         self.max_rows = 200
 
     def set_values(self):
-        start_rows = 4
-        self.grid = [[1 for _ in range(self.cols)] for _ in range(start_rows)]
+        self.grid = [[1 for _ in range(self.cols)] for _ in range(self.start_rows)]
         self.color_grid = [[random.choice(self.random_colors) for _ in range(self.cols)]
-                           for _ in range(start_rows)]
+                           for _ in range(self.start_rows)]
 
     def reset_invade(self):
         now = pg.time.get_ticks()

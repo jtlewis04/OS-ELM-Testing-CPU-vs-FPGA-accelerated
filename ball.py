@@ -10,9 +10,14 @@ class Ball:
         self.y = y
         self.radius = ball_radius
 
-        self.base_speed = ((ball_x_speed**2 + ball_y_speed**2) ** 0.5) * 1.6
+        self._min_speed = ((ball_x_speed**2 + ball_y_speed**2) ** 0.5) * 1.6
+        self.base_speed = self._min_speed
         self.x_speed = ball_x_speed * 1.6
         self.y_speed = ball_y_speed * 1.6
+        self._normalize_speed()
+
+    def set_combo_speed(self, combo):
+        self.base_speed = self._min_speed * (1 + 0.05 * combo)
         self._normalize_speed()
 
     def _normalize_speed(self):

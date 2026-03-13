@@ -22,5 +22,5 @@ ball_color = "grey"
 # Text settings
 text_x = 300
 # Bricks settings
-brick_width = 40
-brick_height = 20
+bricks_per_row = 10
+bricks_per_col = 15

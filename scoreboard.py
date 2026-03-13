@@ -8,7 +8,6 @@ class ScoreBoard:
         self.x = x
         self.score = 0
         self.high_score = 0
-        self.trials = 2
         self.font = pg.font.SysFont("calibri", 20)
 
         # combo system
@@ -19,13 +18,11 @@ class ScoreBoard:
     def show_scores(self):
         score_text = self.font.render(f"Score: {self.score}", True, self.color)
         high_score_text = self.font.render(f"High Score: {self.high_score}", True, self.color)
-        trials_text = self.font.render(f"Trials: X{self.trials}", True, self.color)
         combo_text = self.font.render(f"Combo: {self.combo}", True, self.color)
 
         self.screen.blit(score_text, (self.x, 10))
         self.screen.blit(high_score_text, (self.x, 26))
-        self.screen.blit(trials_text, (self.x, 42))
-        self.screen.blit(combo_text, (self.x, 58))
+        self.screen.blit(combo_text, (self.x, 42))
 
     def brick_hit(self):
         self.combo = min(self.combo + 1, self.combo_max)
@@ -34,9 +31,6 @@ class ScoreBoard:
 
     def reset_combo(self):
         self.combo = 0
-
-    def is_game_over(self):
-        return self.trials == 0
 
     def game_over(self):
         font = pg.font.SysFont("calibri", 30)

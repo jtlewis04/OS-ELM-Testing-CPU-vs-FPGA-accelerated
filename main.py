@@ -13,10 +13,12 @@ clock = pg.time.Clock()
 
 pad = Paddle(paddle_x, paddle_y)
 ball = Ball(ball_x, ball_y, screen)
-bricks = Bricks(screen, brick_width, brick_height)
+bricks = Bricks(bricks_per_row, bricks_per_col, screen)
 
 score = ScoreBoard(10, "white", screen)
 score.set_high_score()
+
+gameover = False
 
 running = True
 while running:
@@ -24,22 +26,16 @@ while running:
     score.show_scores()
     pad.appear(screen)
 
-    if score.is_game_over():
-        score.game_over()
-
-    elif bricks.bricks_left() == 0:
+    if bricks.bricks_left() == 0:
         score.success()
 
-    else:
-        if bricks.invade_update(pad.rect):
-            score.trials = 0
+    elif(not gameover):
+        bricks.invade_update(pad.rect)
 
         ball.move()
 
-        if ball.check_for_contact_on_x():
-            score.reset_combo()
-        if ball.check_for_contact_on_y():
-            score.reset_combo()
+        ball.check_for_contact_on_x()
+        ball.check_for_contact_on_y()
 
         # robust paddle hit (ball rect vs paddle rect)
         ball_rect = pg.Rect(int(ball.x - ball.radius), int(ball.y - ball.radius),
@@ -49,23 +45,19 @@ while running:
             ball.bounce_from_paddle(pad.rect)
             ball.y = pad.rect.top - ball.radius - 1
             score.reset_combo()
+            ball.set_combo_speed(score.combo)
 
         if bricks.hit_by_ball(ball.x, ball.y, ball.radius):
             ball.bounce_y()
             score.brick_hit()
+            ball.set_combo_speed(score.combo)
 
         if ball.y + ball.radius >= HEIGHT:
-            score.trials -= 1
-            score.score = 0
-            score.reset_combo()
-
             bricks.reset_all()
-
-            ball.x = ball_x
-            ball.y = pad.rect.top - ball.radius - 1
-
-            pg.time.delay(500)
-            ball.y_speed = -abs(ball.y_speed)
+            gameover = True
+    else:
+        score.game_over()
+            
 
     bricks.show_bricks()
 
@@ -73,10 +65,11 @@ while running:
         if event.type == pg.QUIT:
             running = False
 
-        if event.type == pg.KEYDOWN and event.key == pg.K_0:
+        if gameover and event.type == pg.KEYDOWN and event.key == pg.K_0:
             score.score = 0
-            score.trials = 2
+            gameover = False
             score.reset_combo()
+            ball.set_combo_speed(0)
 
             bricks.reset_all()
 
@@ -85,9 +78,9 @@ while running:
             ball.y_speed = -abs(ball.y_speed)
 
     keys = pg.key.get_pressed()
-    if keys[pg.K_RIGHT]:
+    if keys[pg.K_RIGHT] and not gameover:
         pad.move_right()
-    if keys[pg.K_LEFT]:
+    if keys[pg.K_LEFT] and not gameover:
         pad.move_left()
 
     pg.display.flip()
