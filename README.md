@@ -16,7 +16,7 @@ This project implements an OS-ELM (Online Sequential Extreme Learning Machine) b
 - Press `0` to restart after a game over or win
 
 ## Files
-### AI
+### AI (PC)
 - `ai/software/training_config.py`
   - Shared hyperparameters (network size, learning rates, episode limits) imported by both training and evaluation
   - **Network**
@@ -43,14 +43,18 @@ This project implements an OS-ELM (Online Sequential Extreme Learning Machine) b
   - Implements `OSELM_QNetwork` (forward pass, batch init, RLS rank-1 update, save/load) and `DQNAgent` (action selection, experience buffering, target network sync, weight reset)
 - `ai/software/encoder.py`
   - Encodes game state into a 6-feature vector for the network: ball position, direction, combo, paddle position, and predicted ball landing x
-- `ai/hardware/Vitis/os_elm_core.h`
-  - HLS header: fixed-point typedef (`ap_fixed<32,12>`), AXI-Stream word type, network dimension defines, DMA opcode defines
-- `ai/hardware/Vitis/os_elm_core.cpp`
-  - Vitis HLS kernel: implements all 6 DMA opcodes (predict with θ₁/θ₂, sequential RLS train, load/read weights, target sync). Persistent BRAM storage for W_in, b, β, β_target, and P. Optimized with array partitioning, loop pipelining, and division-to-multiplication conversions
+### AI (Zynq Ultrascale+ XCZU3EG MPSoC)
 - `ai/hardware/training_loop_jupyter.py`
   - FPGA-accelerated training loop for Jupyter on the AUP-ZU3. CPU handles environment, init_batch, and epsilon-greedy logic. FPGA handles predict and sequential train via DMA. Same training logic and reward structure as the software version
 - `ai/hardware/board_evaluate.py`
   - Jupyter-compatible evaluation script for the AUP-ZU3. Loads a saved `.npz` weight file and renders the agent playing via an ipywidgets Image widget. Uses software (numpy) inference, no FPGA overlay needed
+- Vitis HLS files
+  - `ai/hardware/Vitis/os_elm_tb.cpp`
+    - Vitis HLS testbench for os_elm_core. Tests all 6 opcodes in sequence: load weights, predict with θ₁ and θ₂, sync target, train, read weights back, and unknown opcode handling. Includes a double-precision reference model to verify Q-value outputs and a stream drain check to catch protocol mismatches
+    - `ai/hardware/Vitis/os_elm_core.h`
+    - HLS header: fixed-point typedef (`ap_fixed<32,12>`), AXI-Stream word type, network dimension defines, DMA opcode defines
+  - `ai/hardware/Vitis/os_elm_core.cpp`
+    - Vitis HLS kernel: implements all 6 DMA opcodes (predict with θ₁/θ₂, sequential RLS train, load/read weights, target sync). Persistent BRAM storage for W_in, b, β, β_target, and P. Optimized with array partitioning, loop pipelining, and division-to-multiplication conversions
 
 ### Game
 - `game/main.py`
