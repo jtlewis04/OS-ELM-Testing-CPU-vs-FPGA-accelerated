@@ -35,7 +35,7 @@ os.environ["SDL_AUDIODRIVER"] = "dummy"
 import sys
 from pathlib import Path
 
-_root = Path(__file__).resolve().parent.parent.parent
+_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(_root / "game"))
 sys.path.insert(0, str(_root / "ai" / "software"))
 
@@ -62,6 +62,17 @@ from training_config import (
     UPDATE_STEP, RESET_AFTER, REG, LAM,
     EPISODES, RENDER_EVERY, MAX_STEPS,
 )
+
+print(f"Starting Training Loop with:\n"
+      f"Gamma: {GAMMA}\n"
+      f"EPS1: {EPS1}\n"
+      f"EPS2: {EPS2}\n"
+      f"Update Step: {UPDATE_STEP}\n"
+      f"Reset Threshold: {RESET_AFTER}\n"
+      f"REG: {REG}\n"
+      f"LAM: {LAM}\n"
+      f"Num Episodes: {EPISODES}\n"
+      f"Render Every: {RENDER_EVERY}\n")
 
 #  Q20 fixed-point helpers
 FRAC_BITS = 20
@@ -218,7 +229,8 @@ class SoftwareOSELM:
 
 
 #  Configuration
-OVERLAY_PATH = "os_elm.bit"           # ← change to your bitstream path
+OVERLAY_PATH = str(_root / "os_elm.bit")
+print(f"Overlay: {OVERLAY_PATH}, is string {OVERLAY_PATH == str}")
 WEIGHTS_DIR  = _root / "weights"
 WEIGHTS_DIR.mkdir(exist_ok=True)
 
@@ -368,6 +380,7 @@ for ep in range(1, EPISODES + 1):
                 init_buf.clear()
 
                 # Step 3: upload α, b, β, P to FPGA BRAM
+                print(f"Loading weights onto PL")
                 fpga.load_weights(sw.W_in, sw.b, sw.beta, sw.P)
                 fpga.sync_target()            # θ₂ ← θ₁
                 print(f"  Init done at ep {ep}, global_step {global_step}. "

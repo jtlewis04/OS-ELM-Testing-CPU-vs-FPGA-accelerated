@@ -55,9 +55,6 @@ static void write_fixed(hls::stream<axis_word_t> &s, fixed_t val, bool last = fa
     word.keep = 0xF;
     word.strb = 0xF;
     word.last = last ? 1 : 0;
-    word.user = 0;
-    word.id   = 0;
-    word.dest = 0;
     s.write(word);
 }
 
@@ -68,9 +65,6 @@ static void write_int(hls::stream<axis_word_t> &s, int val, bool last = false) {
     word.keep = 0xF;
     word.strb = 0xF;
     word.last = last ? 1 : 0;
-    word.user = 0;
-    word.id   = 0;
-    word.dest = 0;
     s.write(word);
 }
 
@@ -439,7 +433,6 @@ void os_elm_core(
 
     
     //  Unknown opcode
-    
     else {
         write_int(out_stream, -1, true);
     }

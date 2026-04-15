@@ -43,6 +43,14 @@ This project implements an OS-ELM (Online Sequential Extreme Learning Machine) b
   - Implements `OSELM_QNetwork` (forward pass, batch init, RLS rank-1 update, save/load) and `DQNAgent` (action selection, experience buffering, target network sync, weight reset)
 - `ai/software/encoder.py`
   - Encodes game state into a 6-feature vector for the network: ball position, direction, combo, paddle position, and predicted ball landing x
+- `ai/hardware/Vitis/os_elm_core.h`
+  - HLS header: fixed-point typedef (`ap_fixed<32,12>`), AXI-Stream word type, network dimension defines, DMA opcode defines
+- `ai/hardware/Vitis/os_elm_core.cpp`
+  - Vitis HLS kernel: implements all 6 DMA opcodes (predict with θ₁/θ₂, sequential RLS train, load/read weights, target sync). Persistent BRAM storage for W_in, b, β, β_target, and P. Optimized with array partitioning, loop pipelining, and division-to-multiplication conversions
+- `ai/hardware/training_loop_jupyter.py`
+  - FPGA-accelerated training loop for Jupyter on the AUP-ZU3. CPU handles environment, init_batch, and epsilon-greedy logic. FPGA handles predict and sequential train via DMA. Same training logic and reward structure as the software version
+- `ai/hardware/board_evaluate.py`
+  - Jupyter-compatible evaluation script for the AUP-ZU3. Loads a saved `.npz` weight file and renders the agent playing via an ipywidgets Image widget. Uses software (numpy) inference, no FPGA overlay needed
 
 ### Game
 - `game/main.py`
@@ -61,7 +69,7 @@ This project implements an OS-ELM (Online Sequential Extreme Learning Machine) b
   - Tracks and displays score, high score, and combo counter
 
 
-## How to Run
+## How to Run (PC)
 
 ### Install Dependencies
 - Run `pip install -r requirements.txt`
@@ -70,21 +78,6 @@ This project implements an OS-ELM (Online Sequential Extreme Learning Machine) b
 - Run `python game/main.py`
 - Use left/right arrow keys to move the paddle
 - Press '0' to restart on loss, exit to end the game
-
-### Play on AUP-ZU3 Board
-- Build `pygame` from source on AUP-ZU3 board
-- Load all files in `game` onto the AUP-ZU3 board
-- Run `main_jupyter.py` in Jupyter notebook
-- Button0 to move left, Button 1 to move right, Button 2 to restart, Button 3 to exit
-
-### Play using Agent Weights
-- Place a saved `.npz` weight file in the `weights/` folder
-- Run with the filename (not full path) as the argument:
-```
-python ai/software/evaluate.py "demo0-122score.npz"
-```
-- The agent will play `NUM_EPISODES` episodes (default: 2) using the same randomness factor (ESP1) as the training_loop. I.E. picks a random move `(1 - ESP1)*100%` of the time.
-- Episode results (score, reward, steps, bricks left) are printed after each episode
 
 ### Train Agent (Software)
 - Adjust hyperparameters in `ai/software/training_config.py` if desired
@@ -105,6 +98,43 @@ python ai/software/training_loop.py
 - Weights are automatically saved to `weights/` when average score exceeds the threshold set in `training_loop.py`
 - After `RESET_AFTER` episodes, will choose whether to reset based on the average score and if the change in reward is positive across the episodes (still improving)
 
-### Train Agent (Hardware)
-- Load files onto AUP-ZU3
-- Run `training_loop_jupyter.py` in a Jupyter Notebook (TODO)
+### Play using Agent Weights (Software)
+- Place a saved `.npz` weight file in the `weights/` folder
+- Run with the filename (not full path) as the argument:
+```
+python ai/software/evaluate.py "demo0-122score.npz"
+```
+- The agent will play `NUM_EPISODES` episodes (default: 2) using the same randomness factor (ESP1) as the training_loop. I.E. picks a random move `(1 - ESP1)*100%` of the time.
+- Episode results (score, reward, steps, bricks left) are printed after each episode
+
+## How to Run (Zynq Ultrascale+ XCZU3EG MPSoC)
+
+### Install Dependencies
+- Build `pygame` from source on board (src file used for this project: `pygame-2.6.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl`)
+
+### Play Manually
+- Load all files in `game/` onto the AUP-ZU3 board
+- Run `main_jupyter.py` in Jupyter notebook
+```
+%run main_jupyter.py
+```
+- Button0 to move left, Button 1 to move right, Button 2 to restart, Button 3 to exit
+
+### Play using Agent Weights (On board)
+- Copy a saved `.npz` weight file into `weights/` on the board
+- In a Jupyter notebook cell, run:
+```
+%run board_evaluate.py "demo0-122score.npz"
+```
+- The agent plays and renders in the notebook via an image widget
+
+### Train Agent (Hardware Accelerated)
+- Copy all files from `game/` and `ai/hardware/` into the same directory on the AUP-ZU3 board
+- Adjust hyperparameters in `training_config.py` if desired
+- Make sure `.bit` and `.hwh` files are named `os_elm.bit` and `os_elm.hwh`
+- Create a Jupyter notebook on the board and run:
+```
+%run training_loop_jupyter.py
+```
+- Progress output matches the software training loop (printed every 25 episodes)
+- Weights are saved to `weights/` when ScAvg25 exceeds the threshold
